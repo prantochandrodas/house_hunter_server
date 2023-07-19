@@ -31,6 +31,11 @@ async function run() {
         const roomCollection = client.db('house_hunter').collection('rooms');
         const bookCollection = client.db('house_hunter').collection('bookings');
 
+        //jwt
+        app.post('/jwt',(req,res)=>{
+            const user=req.body;
+            console.log(user)
+        })
         // add signuped user
         app.post('/addUser', async (req, res) => {
             const post = req.body;
