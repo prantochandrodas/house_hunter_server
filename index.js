@@ -24,17 +24,31 @@ const client = new MongoClient(uri, {
         deprecationErrors: true,
     }
 });
-
+function verifyJwt(req, res, next) {
+    const authHeader = (req.headers.authorization);
+    if (!authHeader) {
+       return res.status(401).send({ message: 'unauthorized access' })
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+        if (err) {
+            res.status(401).send({ message: 'unauthorized access' })
+        }
+        req.decoded=decoded;
+        next();
+    })
+}
 async function run() {
     try {
         const userCollection = client.db('house_hunter').collection('users');
         const roomCollection = client.db('house_hunter').collection('rooms');
         const bookCollection = client.db('house_hunter').collection('bookings');
 
-        //jwt
-        app.post('/jwt',(req,res)=>{
-            const user=req.body;
-            console.log(user)
+        // //jwt
+        app.post('/jwt', (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "7d" });
+            res.send({ token })
         })
         // add signuped user
         app.post('/addUser', async (req, res) => {
@@ -70,7 +84,6 @@ async function run() {
         //getHouseInfoById
         app.get('/getHouseInfoById/:id', async (req, res) => {
             const id = req.params.id;
-            console.log(id);
             const query = { _id: new ObjectId(id) };
             const result = await roomCollection.findOne(query);
             res.send(result);
@@ -85,7 +98,7 @@ async function run() {
         })
 
         //myBookings
-        app.get('/myBookings', async (req, res) => {
+        app.get('/myBookings', verifyJwt,async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
             const result = await bookCollection.find(query).toArray();
@@ -93,7 +106,7 @@ async function run() {
         })
 
         //get room by id
-        app.get('/myHouses', async (req, res) => {
+        app.get('/myHouses', verifyJwt,async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
             const result = await roomCollection.find(query).toArray();
@@ -111,7 +124,6 @@ async function run() {
         // add booking 
         app.post('/addBooking', async (req, res) => {
             const post = req.body;
-            console.log(post)
             const query = { email: req.body.email, picture: req.body.picture }
             const find = await bookCollection.findOne(query)
             if (find) {
@@ -127,7 +139,6 @@ async function run() {
         app.put('/updateRoomData/:id', async (req, res) => {
             const id = req.params.id;
             const post = req.body;
-            console.log(post)
             const query = { _id: new ObjectId(id) }
             const option = { upsert: true }
             const updatedDoc = {
@@ -158,7 +169,8 @@ async function run() {
 
 
         //get all Rooms
-        app.get('/allRooms', async (req, res) => {
+        app.get('/allRooms', verifyJwt, async (req, res) => {
+            // console.log(req.headers)
             const page = req.query.page;
             const size = parseInt(req.query.size);
             const query = {};
@@ -167,7 +179,7 @@ async function run() {
             res.send({ count, result });
         })
         //filter all Rooms
-        app.get('/filter', async (req, res) => {
+        app.get('/filter', verifyJwt,async (req, res) => {
             const page = req.query.page;
             const city = req.query.city;
             const rent = req.query.rent;
